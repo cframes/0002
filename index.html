@@ -2,433 +2,338 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-
-<meta
-name="viewport"
-content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no"
-/>
-
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
+<meta name="theme-color" content="#000000" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
 <title>Professional Stable AR</title>
 
-<!-- AFRAME -->
 <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
-
-<!-- MINDAR -->
 <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.2/dist/mindar-image-aframe.prod.js"></script>
 
 <style>
-
-*{
-margin:0;
-padding:0;
-box-sizing:border-box;
-}
+*{margin:0;padding:0;box-sizing:border-box;}
 
 html,body{
-width:100%;
-height:100%;
-overflow:hidden;
-background:#000;
-font-family:Arial,sans-serif;
-touch-action:none;
--webkit-user-select:none;
-user-select:none;
+  width:100%;height:100%;
+  overflow:hidden;
+  background:#000;
+  font-family:Arial,sans-serif;
+  touch-action:none;
+  -webkit-user-select:none;user-select:none;
 }
 
-body{
-position:fixed;
-inset:0;
-}
-
-canvas{
-display:block;
-image-rendering:auto;
-}
+body{position:fixed;inset:0;}
+canvas{display:block;image-rendering:auto;}
 
 #loading{
-position:fixed;
-inset:0;
-background:#000;
-display:flex;
-justify-content:center;
-align-items:center;
-z-index:9999;
-color:#fff;
-font-size:18px;
-letter-spacing:.5px;
-transition:opacity .3s ease;
+  position:fixed;inset:0;
+  background:#000;
+  display:flex;flex-direction:column;
+  justify-content:center;align-items:center;gap:16px;
+  z-index:9999;
+  color:#fff;font-size:18px;letter-spacing:.5px;
+  transition:opacity .4s ease;
 }
+#loading.hide{opacity:0;pointer-events:none;}
 
-#loading.hide{
-opacity:0;
-pointer-events:none;
+#loading-spinner{
+  width:36px;height:36px;
+  border:3px solid rgba(255,255,255,.2);
+  border-top-color:#fff;
+  border-radius:50%;
+  animation:spin .8s linear infinite;
 }
+@keyframes spin{to{transform:rotate(360deg);}}
 
-#tap{
-position:fixed;
-left:50%;
-bottom:25px;
-transform:translateX(-50%);
-padding:12px 18px;
-background:rgba(0,0,0,.72);
-color:#fff;
-font-size:14px;
-border-radius:14px;
-z-index:999;
-backdrop-filter:blur(10px);
+#error{
+  position:fixed;inset:0;
+  background:#000;
+  display:none;flex-direction:column;
+  justify-content:center;align-items:center;gap:12px;
+  z-index:9999;
+  color:#ff5555;font-size:16px;
+  text-align:center;padding:24px;
 }
-
-#tap.hide{
-display:none;
-}
-
+#error.show{display:flex;}
 </style>
 </head>
 
 <body>
 
-<div id="loading">Loading AR...</div>
+<div id="loading">
+  <div id="loading-spinner"></div>
+  <span>Loading AR…</span>
+</div>
 
-<div id="tap">Tap once to enable audio</div>
+<div id="error">
+  <span>⚠️ Could not load AR target.<br>Please check your connection and refresh.</span>
+</div>
 
 <a-scene
-
-embedded
-
-vr-mode-ui="enabled:false"
-
-device-orientation-permission-ui="enabled:false"
-
-color-space="sRGB"
-
-renderer="
-alpha:true;
-antialias:true;
-precision:mediump;
-colorManagement:true;
-sortObjects:true;
-physicallyCorrectLights:false;
-logarithmicDepthBuffer:true;
-powerPreference:high-performance;
-"
-
-mindar-image="
-imageTargetSrc: targets.mind;
-
-autoStart: true;
-
-uiLoading: no;
-uiScanning: yes;
-uiError: no;
-
-maxTrack: 1;
-
-filterMinCF: 0.001;
-filterBeta: 0.01;
-
-warmupTolerance: 5;
-missTolerance: 3;
-"
-
+  embedded
+  vr-mode-ui="enabled:false"
+  device-orientation-permission-ui="enabled:false"
+  color-space="sRGB"
+  renderer="
+    alpha:true;
+    antialias:false;
+    precision:mediump;
+    colorManagement:true;
+    sortObjects:true;
+    physicallyCorrectLights:false;
+    logarithmicDepthBuffer:false;
+    powerPreference:high-performance;
+    maxCanvasWidth:1920;
+    maxCanvasHeight:1920;
+  "
+  mindar-image="
+    imageTargetSrc: targets.mind;
+    autoStart: true;
+    uiLoading: no;
+    uiScanning: yes;
+    uiError: no;
+    maxTrack: 1;
+    filterMinCF: 0.1;
+    filterBeta: 0.001;
+    warmupTolerance: 5;
+    missTolerance: 10;
+  "
 >
 
-<a-assets timeout="20000">
+  <a-assets timeout="30000" id="assets">
+    <video
+      id="video"
+      src="video.mp4"
+      preload="auto"
+      crossorigin="anonymous"
+      loop
+      playsinline
+      webkit-playsinline
+      muted
+    ></video>
+  </a-assets>
 
-<video
-id="video"
+  <a-camera position="0 0 0" look-controls="enabled:false"></a-camera>
 
-src="video.mp4"
-
-preload="auto"
-
-crossorigin="anonymous"
-
-loop
-
-playsinline
-webkit-playsinline
-
-muted
-
-></video>
-
-</a-assets>
-
-<a-camera
-position="0 0 0"
-look-controls="enabled:false"
-></a-camera>
-
-<a-entity
-id="target"
-mindar-image-target="targetIndex:0"
->
-
-<a-video
-id="videoPlane"
-
-src="#video"
-
-position="0 0 0"
-
-width="1"
-height="1.5"
-
-material="
-shader:flat;
-transparent:true;
-depthTest:false;
-depthWrite:false;
-toneMapped:false;
-"
-></a-video>
-
-</a-entity>
+  <a-entity id="target" mindar-image-target="targetIndex:0">
+    <a-video
+      id="videoPlane"
+      src="#video"
+      position="0 0 0"
+      width="1"
+      height="1.5"
+      material="
+        shader:flat;
+        transparent:true;
+        depthTest:false;
+        depthWrite:false;
+        toneMapped:false;
+        npot:true;
+      "
+    ></a-video>
+  </a-entity>
 
 </a-scene>
 
 <script>
-
-const scene = document.querySelector("a-scene");
-
-const video = document.querySelector("#video");
-
-const target = document.querySelector("#target");
-
-const videoPlane = document.querySelector("#videoPlane");
-
-const loading = document.querySelector("#loading");
-
-const tapUI = document.querySelector("#tap");
-
-let tracking = false;
-
-let audioUnlocked = false;
-
-let lostTimeout = null;
-
-
-
-// LOADING REMOVE
-
-scene.addEventListener("renderstart", ()=>{
-
-setTimeout(()=>{
-
-loading.classList.add("hide");
-
-},300);
-
-});
-
-
-
-// VIDEO FIT
-
-video.addEventListener("loadedmetadata", ()=>{
-
-const vw = video.videoWidth;
-
-const vh = video.videoHeight;
-
-const ratio = vw / vh;
-
-if(ratio > 1){
-
-videoPlane.setAttribute("width", ratio);
-
-videoPlane.setAttribute("height", 1);
-
-}else{
-
-videoPlane.setAttribute("width", 1);
-
-videoPlane.setAttribute("height", 1 / ratio);
-
-}
-
-});
-
-
-
-// PRELOAD VIDEO
-
-async function preloadVideo(){
-
-try{
-
-video.muted = true;
-
-await video.play();
-
-video.pause();
-
-video.currentTime = 0;
-
-}catch(e){}
-
-}
-
-window.addEventListener("load", preloadVideo);
-
-
-
-// AUDIO UNLOCK
-
-async function unlockAudio(){
-
-if(audioUnlocked) return;
-
-audioUnlocked = true;
-
-try{
-
-video.muted = false;
-
-await video.play();
-
-video.pause();
-
-video.currentTime = 0;
-
-}catch(e){}
-
-tapUI.classList.add("hide");
-
-}
-
-document.body.addEventListener(
-"click",
-unlockAudio,
-{ once:true }
-);
-
-document.body.addEventListener(
-"touchstart",
-unlockAudio,
-{ once:true }
-);
-
-
-
-// TARGET FOUND
-
-target.addEventListener("targetFound", async ()=>{
-
-clearTimeout(lostTimeout);
-
-if(tracking) return;
-
-tracking = true;
-
-try{
-
-if(audioUnlocked){
-
-video.muted = false;
-
-}else{
-
-video.muted = true;
-
-}
-
-video.currentTime = 0;
-
-await video.play();
-
-}catch(e){}
-
-});
-
-
-
-// TARGET LOST
-
-target.addEventListener("targetLost", ()=>{
-
-lostTimeout = setTimeout(()=>{
-
-tracking = false;
-
-video.pause();
-
-},120);
-
-});
-
-
-
-// PAGE VISIBILITY
-
-document.addEventListener("visibilitychange", ()=>{
-
-if(document.hidden){
-
-video.pause();
-
-}else{
-
-if(tracking){
-
-video.play();
-
-}
-
-}
-
-});
-
-
-
-// IOS FIX
-
-video.setAttribute("playsinline", "");
-
-video.setAttribute("webkit-playsinline", "");
-
-
-
-// FORCE VIDEO TEXTURE UPDATE
-
-AFRAME.registerComponent("video-updater", {
-
-tick: function(){
-
-if(video.readyState >= 2){
-
-const mesh = this.el.getObject3D("mesh");
-
-if(mesh){
-
-mesh.material.map.needsUpdate = true;
-
-}
-
-}
-
-}
-
-});
-
-videoPlane.setAttribute("video-updater","");
-
-
-
-// PERFORMANCE OPTIMIZATION
-
-AFRAME.registerComponent("visibility-handler", {
-
-tick:function(){
-
-this.el.object3D.visible = tracking;
-
-}
-
-});
-
-videoPlane.setAttribute("visibility-handler","");
-
+(function () {
+
+  /* ── Element refs ────────────────────────────────── */
+  const scene      = document.querySelector("a-scene");
+  const video      = document.querySelector("#video");
+  const assets     = document.querySelector("#assets");
+  const target     = document.querySelector("#target");
+  const videoPlane = document.querySelector("#videoPlane");
+  const loading    = document.querySelector("#loading");
+  const errorEl    = document.querySelector("#error");
+
+  /* ── State ───────────────────────────────────────── */
+  let tracking    = false;
+  let audioReady  = false;
+  let lostTimer   = null;
+  let rafId       = null;
+  let rafRunning  = false;
+
+  /* ── Smoothing state (lerp between raw AR poses) ─── */
+  // MindAR gives a new matrix every frame. Instead of snapping to it,
+  // we interpolate toward it — this kills the micro-jitter that makes
+  // the video look "shaky" on imperfect lighting or fast movement.
+  const THREE     = AFRAME.THREE;
+  const lerpPos   = new THREE.Vector3();
+  const lerpQuat  = new THREE.Quaternion();
+  const lerpScale = new THREE.Vector3(1, 1, 1);
+  const tmpPos    = new THREE.Vector3();
+  const tmpQuat   = new THREE.Quaternion();
+  const tmpScale  = new THREE.Vector3();
+  // Smoothing factor: 0 = frozen, 1 = no smoothing.
+  // 0.25 is a good balance — responsive but jitter-free.
+  const LERP_FACTOR = 0.25;
+  let smoothingReady = false;
+
+  /* ── iOS attribute fix ───────────────────────────── */
+  video.setAttribute("playsinline", "");
+  video.setAttribute("webkit-playsinline", "");
+
+  /* ── Cap pixel ratio to 2 — retina screens at full ──
+     density give no tracking benefit but burn GPU/CPU  */
+  scene.addEventListener("loaded", () => {
+    const renderer = scene.renderer;
+    if (renderer) renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  });
+
+  /* ── Error handling ──────────────────────────────── */
+  fetch("targets.mind", { method: "HEAD" }).catch(showError);
+  scene.addEventListener("arError", showError);
+
+  function showError() {
+    loading.classList.add("hide");
+    errorEl.classList.add("show");
+  }
+
+  /* ── Hide loading once A-Frame renders ───────────── */
+  scene.addEventListener("renderstart", () => {
+    setTimeout(() => loading.classList.add("hide"), 400);
+  });
+
+  /* ── Auto-fit video to natural aspect ratio ──────── */
+  video.addEventListener("loadedmetadata", () => {
+    const r = video.videoWidth / video.videoHeight;
+    if (r > 1) {
+      videoPlane.setAttribute("width",  r);
+      videoPlane.setAttribute("height", 1);
+    } else {
+      videoPlane.setAttribute("width",  1);
+      videoPlane.setAttribute("height", 1 / r);
+    }
+  });
+
+  /* ── Buffer video as soon as assets load ─────────── */
+  assets.addEventListener("loaded", () => {
+    video.muted = true;
+    video.play()
+      .then(() => { video.pause(); video.currentTime = 0; })
+      .catch(() => {});
+  });
+
+  /* ── Audio unlock on first gesture ──────────────── */
+  document.addEventListener("pointerdown", onFirstGesture, { once: true, passive: true });
+
+  function onFirstGesture() {
+    if (audioReady) return;
+    const prev = video.muted;
+    video.muted = false;
+    video.play()
+      .then(() => {
+        audioReady = true;
+        if (!tracking) { video.pause(); video.currentTime = 0; }
+      })
+      .catch(() => { video.muted = prev; });
+  }
+
+  /* ── Target found ────────────────────────────────── */
+  target.addEventListener("targetFound", async () => {
+    clearTimeout(lostTimer);
+    lostTimer = null;
+    if (tracking) return;
+    tracking = true;
+    smoothingReady = false; // reset lerp so first frame snaps, not lerps from origin
+
+    videoPlane.object3D.visible = true;
+    startRaf();
+
+    video.muted = !audioReady;
+
+    try {
+      if (video.readyState >= 2) video.currentTime = 0;
+      await video.play();
+      video.muted = false; // unmute after successful play (Android edge case)
+    } catch (e) {}
+  });
+
+  /* ── Target lost ─────────────────────────────────── */
+  target.addEventListener("targetLost", () => {
+    lostTimer = setTimeout(() => {
+      tracking = false;
+      video.pause();
+      videoPlane.object3D.visible = false;
+      stopRaf();
+    }, 800);
+  });
+
+  /* ── Page visibility ─────────────────────────────── */
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+      video.pause();
+    } else if (tracking) {
+      video.play().catch(() => {});
+    }
+  });
+
+  /* ── RAF loop — texture update + pose smoothing ──── */
+  function startRaf() {
+    if (rafRunning) return;
+    rafRunning = true;
+    loop();
+  }
+
+  function stopRaf() {
+    rafRunning = false;
+    cancelAnimationFrame(rafId);
+  }
+
+  function loop() {
+    if (!rafRunning) return;
+
+    // 1. Update video texture every frame
+    if (video.readyState >= 2) {
+      const mesh = videoPlane.getObject3D("mesh");
+      if (mesh?.material?.map) mesh.material.map.needsUpdate = true;
+    }
+
+    // 2. Smooth the video plane's world position/rotation
+    // MindAR writes directly to target's object3D matrix each frame.
+    // We read what MindAR set on the parent (target entity) and
+    // apply a lerp to the videoPlane child so it glides smoothly.
+    const src = target.object3D;
+    src.updateWorldMatrix(true, false);
+    src.matrixWorld.decompose(tmpPos, tmpQuat, tmpScale);
+
+    if (!smoothingReady) {
+      // First frame after targetFound — snap immediately, no lerp
+      lerpPos.copy(tmpPos);
+      lerpQuat.copy(tmpQuat);
+      lerpScale.copy(tmpScale);
+      smoothingReady = true;
+    } else {
+      lerpPos.lerp(tmpPos, LERP_FACTOR);
+      lerpQuat.slerp(tmpQuat, LERP_FACTOR);
+      // Scale doesn't change in image tracking, but keep it in sync
+      lerpScale.lerp(tmpScale, LERP_FACTOR);
+    }
+
+    // Apply smoothed transform back to the video plane in local space.
+    // We work in local space so MindAR's own matrix writes aren't overwritten.
+    const plane = videoPlane.object3D;
+    const parentInv = new THREE.Matrix4().copy(src.parent
+      ? src.parent.matrixWorld
+      : new THREE.Matrix4()
+    ).invert();
+
+    const smoothed = new THREE.Matrix4().compose(lerpPos, lerpQuat, lerpScale);
+    smoothed.premultiply(parentInv);
+    smoothed.decompose(plane.position, plane.quaternion, plane.scale);
+    plane.matrixAutoUpdate = false;
+    plane.matrix.compose(plane.position, plane.quaternion, plane.scale);
+
+    rafId = requestAnimationFrame(loop);
+  }
+
+  /* ── Hide video plane until target is first found ── */
+  videoPlane.addEventListener("loaded", () => {
+    videoPlane.object3D.visible = false;
+  });
+
+}());
 </script>
 
 </body>
