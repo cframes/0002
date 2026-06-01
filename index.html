@@ -1,220 +1,209 @@
 <!DOCTYPE html>
-<html>
-  <head>
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Smooth MindAR Video</title>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
+<meta name="theme-color" content="#000000" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<title>AR</title>
 
-    <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.2/dist/mindar-image-aframe.prod.js"></script>
+<script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.2/dist/mindar-image-aframe.prod.js"></script>
 
-    <style>
-      html,
-      body {
-        margin: 0;
-        width: 100%;
-        height: 100%;
-        overflow: hidden;
-      }
-    </style>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{
+  width:100%;height:100%;
+  overflow:hidden;
+  background:#000;
+  touch-action:none;
+  -webkit-user-select:none;user-select:none;
+  position:fixed;inset:0;
+}
+canvas{display:block;}
+</style>
+</head>
 
-    <script>
-      AFRAME.registerComponent("smooth-follow", {
-        schema: {
-          target: { type: "selector" },
-          positionLerp: { default: 0.14 },
-          rotationLerp: { default: 0.14 },
-          scaleLerp: { default: 0.14 },
-          hideDelay: { default: 300 }
-        },
+<body>
 
-        init: function () {
-          this.visibleTarget = false;
-          this.ready = false;
-          this.hideTimer = null;
+<a-scene
+  embedded
+  vr-mode-ui="enabled:false"
+  device-orientation-permission-ui="enabled:false"
+  color-space="sRGB"
+  renderer="
+    alpha:true;
+    antialias:true;
+    precision:mediump;
+    colorManagement:true;
+    sortObjects:true;
+    physicallyCorrectLights:false;
+    logarithmicDepthBuffer:true;
+    powerPreference:high-performance;
+  "
+  mindar-image="
+    imageTargetSrc: targets.mind;
+    autoStart: true;
+    uiLoading: no;
+    uiScanning: no;
+    uiError: no;
+    maxTrack: 1;
+    filterMinCF: 0.0001;
+    filterBeta: 0.001;
+    warmupTolerance: 10;
+    missTolerance: 10;
+  "
+>
 
-          this.pos = new THREE.Vector3();
-          this.quat = new THREE.Quaternion();
-          this.scale = new THREE.Vector3();
+  <a-assets timeout="60000" id="assets">
+    <video
+      id="video"
+      src="video.mp4"
+      preload="auto"
+      crossorigin="anonymous"
+      loop
+      playsinline
+      webkit-playsinline
+      muted
+    ></video>
+  </a-assets>
 
-          this.el.object3D.visible = false;
+  <a-camera position="0 0 0" look-controls="enabled:false"></a-camera>
 
-          this.onFound = () => {
-            this.visibleTarget = true;
-            clearTimeout(this.hideTimer);
-          };
-
-          this.onLost = () => {
-            this.visibleTarget = false;
-
-            clearTimeout(this.hideTimer);
-            this.hideTimer = setTimeout(() => {
-              if (!this.visibleTarget) {
-                this.el.object3D.visible = false;
-                this.ready = false;
-              }
-            }, this.data.hideDelay);
-          };
-
-          this.data.target.addEventListener("targetFound", this.onFound);
-          this.data.target.addEventListener("targetLost", this.onLost);
-        },
-
-        tick: function () {
-          if (!this.visibleTarget || !this.data.target) return;
-
-          const targetObj = this.data.target.object3D;
-          const obj = this.el.object3D;
-
-          targetObj.updateMatrixWorld(true);
-          targetObj.matrixWorld.decompose(this.pos, this.quat, this.scale);
-
-          if (!this.ready) {
-            obj.position.copy(this.pos);
-            obj.quaternion.copy(this.quat);
-            obj.scale.copy(this.scale);
-            obj.visible = true;
-            this.ready = true;
-            return;
-          }
-
-          obj.position.lerp(this.pos, this.data.positionLerp);
-          obj.quaternion.slerp(this.quat, this.data.rotationLerp);
-          obj.scale.lerp(this.scale, this.data.scaleLerp);
-        }
-      });
-    </script>
-  </head>
-
-  <body>
-    <a-scene
-      mindar-image="
-        imageTargetSrc: ./targets.mind;
-        filterMinCF: 0.0001;
-        filterBeta: 0.001;
-        warmupTolerance: 5;
-        missTolerance: 5;
+  <a-entity id="target" mindar-image-target="targetIndex:0">
+    <a-video
+      id="videoPlane"
+      src="#video"
+      position="0 0 0"
+      width="1"
+      height="1.777"
+      material="
+        shader:flat;
+        transparent:true;
+        depthTest:false;
+        depthWrite:false;
+        toneMapped:false;
       "
-      color-space="sRGB"
-      renderer="colorManagement: true; physicallyCorrectLights: true"
-      vr-mode-ui="enabled: false"
-      device-orientation-permission-ui="enabled: false"
-    >
-      <a-assets>
-        <video
-          id="vid"
-          src="./video.mp4"
-          loop
-          playsinline
-          webkit-playsinline
-          crossorigin="anonymous"
-          preload="auto"
-        ></video>
-      </a-assets>
+    ></a-video>
+  </a-entity>
 
-      <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+</a-scene>
 
-      <a-entity id="target" mindar-image-target="targetIndex: 0"></a-entity>
+<script>
+(function(){
 
-      <a-entity
-        id="smoothVideo"
-        smooth-follow="target: #target; positionLerp: 0.14; rotationLerp: 0.14; scaleLerp: 0.14; hideDelay: 300"
-      >
-        <a-video
-          id="videoPlane"
-          src="#vid"
-          width="1"
-          height="1.5"
-          position="0 0 0"
-        ></a-video>
-      </a-entity>
-    </a-scene>
+  const scene      = document.querySelector("a-scene");
+  const video      = document.querySelector("#video");
+  const assets     = document.querySelector("#assets");
+  const target     = document.querySelector("#target");
+  const videoPlane = document.querySelector("#videoPlane");
 
-    <script>
-      const video = document.querySelector("#vid");
-      const videoPlane = document.querySelector("#videoPlane");
-      const target = document.querySelector("#target");
+  let tracking      = false;
+  let audioUnlocked = false;
+  let lostTimer     = null;
+  let rafId         = null;
 
-      let unlocked = false;
-      let targetVisible = false;
-      let lostTimer = null;
+  /* ── iOS attribute fix ── */
+  video.setAttribute("playsinline", "");
+  video.setAttribute("webkit-playsinline", "");
 
-      const frameWidth = 1;
-      const frameHeight = 1.5;
-      const fitMode = "cover";
+  /* ── Fit video plane to actual video dimensions ── */
+  video.addEventListener("loadedmetadata", () => {
+    const ratio = video.videoWidth / video.videoHeight;
+    if (ratio >= 1) {
+      videoPlane.setAttribute("width",  ratio.toFixed(4));
+      videoPlane.setAttribute("height", "1");
+    } else {
+      videoPlane.setAttribute("width",  "1");
+      videoPlane.setAttribute("height", (1 / ratio).toFixed(4));
+    }
+  });
 
-      function fitVideoToFrame() {
-        const videoRatio = video.videoWidth / video.videoHeight;
-        const frameRatio = frameWidth / frameHeight;
+  /* ── Pre-buffer video (muted) so first frame is ready ── */
+  assets.addEventListener("loaded", () => {
+    video.muted = true;
+    video.load();
+    const warmup = video.play();
+    if (warmup) warmup.then(() => { video.pause(); video.currentTime = 0; }).catch(()=>{});
+  });
 
-        let width;
-        let height;
+  /* ── Continuous RAF texture pump — always on once scene starts ── */
+  // Running the loop continuously (not just when tracking) eliminates
+  // the "frozen first frame" artefact when re-acquiring the target.
+  scene.addEventListener("renderstart", startRaf);
 
-        if (fitMode === "cover") {
-          if (videoRatio > frameRatio) {
-            height = frameHeight;
-            width = frameHeight * videoRatio;
-          } else {
-            width = frameWidth;
-            height = frameWidth / videoRatio;
-          }
-        } else {
-          if (videoRatio > frameRatio) {
-            width = frameWidth;
-            height = frameWidth / videoRatio;
-          } else {
-            height = frameHeight;
-            width = frameHeight * videoRatio;
-          }
-        }
-
-        videoPlane.setAttribute("width", width);
-        videoPlane.setAttribute("height", height);
+  function startRaf() {
+    if (rafId) return;
+    (function loop() {
+      const mesh = videoPlane.getObject3D && videoPlane.getObject3D("mesh");
+      if (mesh && mesh.material && mesh.material.map && video.readyState >= 2) {
+        mesh.material.map.needsUpdate = true;
       }
+      rafId = requestAnimationFrame(loop);
+    })();
+  }
 
-      async function unlockVideo() {
-        if (unlocked) return;
+  /* ── Audio unlock on first user gesture ── */
+  document.body.addEventListener("pointerdown", unlockAudio, { once: true, passive: true });
 
-        try {
-          video.muted = false;
-          video.volume = 1;
+  async function unlockAudio() {
+    if (audioUnlocked) return;
+    try {
+      video.muted = false;
+      await video.play();
+      video.pause();
+      video.currentTime = 0;
+      audioUnlocked = true;
+    } catch(e) {
+      video.muted = true;
+    }
+  }
 
-          await video.play();
-          video.pause();
-          video.currentTime = 0;
+  /* ── Target found ── */
+  target.addEventListener("targetFound", async () => {
+    clearTimeout(lostTimer);
+    lostTimer = null;
 
-          unlocked = true;
+    videoPlane.object3D.visible = true;
 
-          if (targetVisible) {
-            video.play();
-          }
-        } catch (error) {
-          console.error("Video/audio unlock failed:", error);
-        }
-      }
+    if (!tracking) {
+      tracking = true;
+      video.currentTime = 0;
+    }
 
-      video.addEventListener("loadedmetadata", fitVideoToFrame);
+    try {
+      video.muted = !audioUnlocked;
+      await video.play();
+    } catch(e) {}
+  });
 
-      document.body.addEventListener("click", unlockVideo, { once: true });
-      document.body.addEventListener("touchstart", unlockVideo, { once: true });
+  /* ── Target lost ── */
+  // 1200ms grace period absorbs brief occlusions and fast camera moves
+  target.addEventListener("targetLost", () => {
+    lostTimer = setTimeout(() => {
+      tracking = false;
+      video.pause();
+      videoPlane.object3D.visible = false;
+    }, 1200);
+  });
 
-      target.addEventListener("targetFound", () => {
-        targetVisible = true;
-        clearTimeout(lostTimer);
+  /* ── Page visibility ── */
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+      video.pause();
+    } else if (tracking) {
+      video.play().catch(() => {});
+    }
+  });
 
-        if (unlocked) {
-          video.muted = false;
-          video.volume = 1;
-          video.play();
-        }
-      });
+  /* ── Initial hidden state ── */
+  videoPlane.addEventListener("loaded", () => {
+    videoPlane.object3D.visible = false;
+  });
 
-      target.addEventListener("targetLost", () => {
-        targetVisible = false;
+})();
+</script>
 
-        lostTimer = setTimeout(() => {
-          video.pause();
-        }, 300);
-      });
-    </script>
-  </body>
+</body>
 </html>
