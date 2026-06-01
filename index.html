@@ -2,7 +2,7 @@
 <html>
   <head>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>MindAR Video Target</title>
+    <title>MindAR Video</title>
 
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.2/dist/mindar-image-aframe.prod.js"></script>
@@ -19,17 +19,16 @@
 
       #startButton {
         position: fixed;
-        z-index: 10;
+        z-index: 999;
         left: 50%;
-        bottom: 32px;
+        bottom: 30px;
         transform: translateX(-50%);
-        padding: 12px 18px;
+        padding: 12px 20px;
         border: 0;
         border-radius: 8px;
         background: #111;
-        color: #fff;
+        color: white;
         font-size: 16px;
-        cursor: pointer;
       }
     </style>
   </head>
@@ -40,7 +39,7 @@
     <a-scene
       mindar-image="imageTargetSrc: ./targets.mind;"
       color-space="sRGB"
-      renderer="colorManagement: true, physicallyCorrectLights"
+      renderer="colorManagement: true, physicallyCorrectLights: true"
       vr-mode-ui="enabled: false"
       device-orientation-permission-ui="enabled: false"
     >
@@ -49,7 +48,6 @@
           id="vid"
           src="./video.mp4"
           loop
-          muted
           playsinline
           webkit-playsinline
           crossorigin="anonymous"
@@ -61,35 +59,69 @@
 
       <a-entity id="target" mindar-image-target="targetIndex: 0">
         <a-video
+          id="videoPlane"
           src="#vid"
-          width="1"
-          height="1.5"
           position="0 0 0"
+          width="1"
+          height="1"
         ></a-video>
       </a-entity>
     </a-scene>
 
     <script>
       const video = document.querySelector("#vid");
+      const videoPlane = document.querySelector("#videoPlane");
       const target = document.querySelector("#target");
       const startButton = document.querySelector("#startButton");
 
-      let videoUnlocked = false;
+      let unlocked = false;
+
+      // Frame size on marker. Change these if needed.
+      const frameWidth = 1;
+      const frameHeight = 1.5;
+
+      function fitVideoToFrame() {
+        const videoRatio = video.videoWidth / video.videoHeight;
+        const frameRatio = frameWidth / frameHeight;
+
+        let width;
+        let height;
+
+        // CONTAIN mode: full video visible, no stretch
+        if (videoRatio > frameRatio) {
+          width = frameWidth;
+          height = frameWidth / videoRatio;
+        } else {
+          height = frameHeight;
+          width = frameHeight * videoRatio;
+        }
+
+        videoPlane.setAttribute("width", width);
+        videoPlane.setAttribute("height", height);
+      }
+
+      video.addEventListener("loadedmetadata", fitVideoToFrame);
 
       startButton.addEventListener("click", async () => {
         try {
+          video.muted = false;
+          video.volume = 1;
+
           await video.play();
           video.pause();
           video.currentTime = 0;
-          videoUnlocked = true;
+
+          unlocked = true;
           startButton.style.display = "none";
         } catch (error) {
-          console.error("Video could not start:", error);
+          console.error("Video/audio start failed:", error);
         }
       });
 
       target.addEventListener("targetFound", () => {
-        if (videoUnlocked) {
+        if (unlocked) {
+          video.muted = false;
+          video.volume = 1;
           video.play();
         }
       });
