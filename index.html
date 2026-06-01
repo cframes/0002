@@ -148,37 +148,40 @@ canvas{display:block;image-rendering:auto;}
   const errorEl    = document.querySelector("#error");
 
   /* ── State ───────────────────────────────────────── */
-  let tracking    = false;
-  let audioReady  = false;
-  let lostTimer   = null;
-  let rafId       = null;
-  let rafRunning  = false;
-
-  /* ── Smoothing state (lerp between raw AR poses) ─── */
-  // MindAR gives a new matrix every frame. Instead of snapping to it,
-  // we interpolate toward it — this kills the micro-jitter that makes
-  // the video look "shaky" on imperfect lighting or fast movement.
-  const THREE     = AFRAME.THREE;
-  const lerpPos   = new THREE.Vector3();
-  const lerpQuat  = new THREE.Quaternion();
-  const lerpScale = new THREE.Vector3(1, 1, 1);
-  const tmpPos    = new THREE.Vector3();
-  const tmpQuat   = new THREE.Quaternion();
-  const tmpScale  = new THREE.Vector3();
-  // Smoothing factor: 0 = frozen, 1 = no smoothing.
-  // 0.25 is a good balance — responsive but jitter-free.
-  const LERP_FACTOR = 0.25;
+  let tracking       = false;
+  let audioReady     = false;
+  let lostTimer      = null;
+  let rafId          = null;
+  let rafRunning     = false;
   let smoothingReady = false;
+
+  /* ── Pre-allocated THREE objects (zero GC in loop) ──
+     Never use "new" inside the RAF loop — every allocation
+     triggers garbage collection which causes frame drops.   */
+  const THREE    = AFRAME.THREE;
+
+  // Raw pose from MindAR (target entity local space)
+  const rawPos   = new THREE.Vector3();
+  const rawQuat  = new THREE.Quaternion();
+  const rawScale = new THREE.Vector3();
+
+  // Smoothed pose we write to videoPlane
+  const smPos    = new THREE.Vector3();
+  const smQuat   = new THREE.Quaternion();
+
+  // Smoothing factor: 0.18 = very smooth, 0.35 = more responsive.
+  // 0.22 hits the sweet spot — kills jitter, follows fast movement well.
+  const LERP = 0.22;
 
   /* ── iOS attribute fix ───────────────────────────── */
   video.setAttribute("playsinline", "");
   video.setAttribute("webkit-playsinline", "");
 
-  /* ── Cap pixel ratio to 2 — retina screens at full ──
-     density give no tracking benefit but burn GPU/CPU  */
+  /* ── Cap pixel ratio — no tracking benefit above 2x ─ */
   scene.addEventListener("loaded", () => {
-    const renderer = scene.renderer;
-    if (renderer) renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    if (scene.renderer) {
+      scene.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    }
   });
 
   /* ── Error handling ──────────────────────────────── */
@@ -190,7 +193,7 @@ canvas{display:block;image-rendering:auto;}
     errorEl.classList.add("show");
   }
 
-  /* ── Hide loading once A-Frame renders ───────────── */
+  /* ── Hide loading overlay ────────────────────────── */
   scene.addEventListener("renderstart", () => {
     setTimeout(() => loading.classList.add("hide"), 400);
   });
@@ -207,7 +210,7 @@ canvas{display:block;image-rendering:auto;}
     }
   });
 
-  /* ── Buffer video as soon as assets load ─────────── */
+  /* ── Buffer video once assets are ready ──────────── */
   assets.addEventListener("loaded", () => {
     video.muted = true;
     video.play()
@@ -215,19 +218,21 @@ canvas{display:block;image-rendering:auto;}
       .catch(() => {});
   });
 
-  /* ── Audio unlock on first gesture ──────────────── */
+  /* ── Audio unlock on first user gesture ─────────── */
+  // One pointerdown anywhere silently primes the audio context.
+  // After this, targetFound plays with sound on both Android & iOS.
   document.addEventListener("pointerdown", onFirstGesture, { once: true, passive: true });
 
   function onFirstGesture() {
     if (audioReady) return;
-    const prev = video.muted;
+    const wasMuted = video.muted;
     video.muted = false;
     video.play()
       .then(() => {
         audioReady = true;
         if (!tracking) { video.pause(); video.currentTime = 0; }
       })
-      .catch(() => { video.muted = prev; });
+      .catch(() => { video.muted = wasMuted; });
   }
 
   /* ── Target found ────────────────────────────────── */
@@ -236,22 +241,24 @@ canvas{display:block;image-rendering:auto;}
     lostTimer = null;
     if (tracking) return;
     tracking = true;
-    smoothingReady = false; // reset lerp so first frame snaps, not lerps from origin
+
+    // Reset smoothing — first frame will snap directly to pose
+    smoothingReady = false;
 
     videoPlane.object3D.visible = true;
     startRaf();
 
     video.muted = !audioReady;
-
     try {
       if (video.readyState >= 2) video.currentTime = 0;
       await video.play();
-      video.muted = false; // unmute after successful play (Android edge case)
+      video.muted = false;
     } catch (e) {}
   });
 
   /* ── Target lost ─────────────────────────────────── */
   target.addEventListener("targetLost", () => {
+    // 800 ms grace period — prevents flicker on brief occlusions
     lostTimer = setTimeout(() => {
       tracking = false;
       video.pause();
@@ -269,7 +276,7 @@ canvas{display:block;image-rendering:auto;}
     }
   });
 
-  /* ── RAF loop — texture update + pose smoothing ──── */
+  /* ── RAF loop ────────────────────────────────────── */
   function startRaf() {
     if (rafRunning) return;
     rafRunning = true;
@@ -279,56 +286,55 @@ canvas{display:block;image-rendering:auto;}
   function stopRaf() {
     rafRunning = false;
     cancelAnimationFrame(rafId);
+    rafId = null;
   }
 
   function loop() {
     if (!rafRunning) return;
 
-    // 1. Update video texture every frame
+    /* 1. Keep video texture in sync ─────────────────── */
     if (video.readyState >= 2) {
       const mesh = videoPlane.getObject3D("mesh");
       if (mesh?.material?.map) mesh.material.map.needsUpdate = true;
     }
 
-    // 2. Smooth the video plane's world position/rotation
-    // MindAR writes directly to target's object3D matrix each frame.
-    // We read what MindAR set on the parent (target entity) and
-    // apply a lerp to the videoPlane child so it glides smoothly.
-    const src = target.object3D;
-    src.updateWorldMatrix(true, false);
-    src.matrixWorld.decompose(tmpPos, tmpQuat, tmpScale);
+    /* 2. Smooth pose — zero allocation ──────────────── */
+    // MindAR updates target.object3D.position / quaternion each frame
+    // in the entity's LOCAL space (it is a direct child of the scene).
+    // We read that local pose and lerp our smoothed accumulators toward
+    // it, then write the smoothed values to videoPlane's local space.
+    // No matrix inversion, no "new" calls → no GC pressure.
+
+    const tObj = target.object3D;
+    rawPos.copy(tObj.position);
+    rawQuat.copy(tObj.quaternion);
+    // rawScale intentionally ignored — image tracking never changes scale
 
     if (!smoothingReady) {
-      // First frame after targetFound — snap immediately, no lerp
-      lerpPos.copy(tmpPos);
-      lerpQuat.copy(tmpQuat);
-      lerpScale.copy(tmpScale);
+      // Snap on first frame so there's no slide-in from origin
+      smPos.copy(rawPos);
+      smQuat.copy(rawQuat);
       smoothingReady = true;
     } else {
-      lerpPos.lerp(tmpPos, LERP_FACTOR);
-      lerpQuat.slerp(tmpQuat, LERP_FACTOR);
-      // Scale doesn't change in image tracking, but keep it in sync
-      lerpScale.lerp(tmpScale, LERP_FACTOR);
+      smPos.lerp(rawPos, LERP);
+      smQuat.slerp(rawQuat, LERP);
     }
 
-    // Apply smoothed transform back to the video plane in local space.
-    // We work in local space so MindAR's own matrix writes aren't overwritten.
-    const plane = videoPlane.object3D;
-    const parentInv = new THREE.Matrix4().copy(src.parent
-      ? src.parent.matrixWorld
-      : new THREE.Matrix4()
-    ).invert();
-
-    const smoothed = new THREE.Matrix4().compose(lerpPos, lerpQuat, lerpScale);
-    smoothed.premultiply(parentInv);
-    smoothed.decompose(plane.position, plane.quaternion, plane.scale);
-    plane.matrixAutoUpdate = false;
-    plane.matrix.compose(plane.position, plane.quaternion, plane.scale);
+    // Write smoothed transform to videoPlane local space.
+    // videoPlane is a child of target, so its parent transform is
+    // already the target's pose — we only need to zero it out and
+    // let the smoothed values on the parent (applied below) do the work.
+    // Actually: we smooth the TARGET object3D directly so MindAR's
+    // raw writes go to tObj, and we override position/quaternion with
+    // our smoothed values before Three.js renders the frame.
+    tObj.position.copy(smPos);
+    tObj.quaternion.copy(smQuat);
+    tObj.matrixAutoUpdate = true; // let Three.js recompute matrix from pos/quat
 
     rafId = requestAnimationFrame(loop);
   }
 
-  /* ── Hide video plane until target is first found ── */
+  /* ── Hide video plane until first target found ────── */
   videoPlane.addEventListener("loaded", () => {
     videoPlane.object3D.visible = false;
   });
