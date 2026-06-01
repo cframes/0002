@@ -5,10 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
 <meta name="theme-color" content="#000000" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-<title>AR Experience</title>
+<title>Professional Stable AR</title>
 
-<!-- A-Frame FIRST, then MindAR -->
 <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.2/dist/mindar-image-aframe.prod.js"></script>
 
@@ -19,159 +17,80 @@ html,body{
   width:100%;height:100%;
   overflow:hidden;
   background:#000;
-  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  font-family:Arial,sans-serif;
   touch-action:none;
   -webkit-user-select:none;user-select:none;
-  -webkit-tap-highlight-color:transparent;
 }
 
 body{position:fixed;inset:0;}
 
-/* Prevent white flash on iOS */
-a-scene{background:#000;}
+canvas{display:block;image-rendering:auto;}
 
-/* ── Loading Screen ── */
+/* Loading screen */
 #loading{
   position:fixed;inset:0;
   background:#000;
   display:flex;flex-direction:column;
-  justify-content:center;align-items:center;gap:20px;
+  justify-content:center;align-items:center;gap:16px;
   z-index:9999;
-  color:#fff;
-  transition:opacity .5s ease;
+  color:#fff;font-size:18px;letter-spacing:.5px;
+  transition:opacity .4s ease;
 }
 #loading.hide{opacity:0;pointer-events:none;}
 
-.spinner{
-  width:44px;height:44px;
-  border:3px solid rgba(255,255,255,.15);
+#loading-spinner{
+  width:36px;height:36px;
+  border:3px solid rgba(255,255,255,.2);
   border-top-color:#fff;
   border-radius:50%;
-  animation:spin .7s linear infinite;
+  animation:spin .8s linear infinite;
 }
 @keyframes spin{to{transform:rotate(360deg);}}
 
-#loading-text{
-  font-size:15px;
-  letter-spacing:.8px;
-  opacity:.8;
-}
-
-/* ── Error Screen ── */
+/* Error screen */
 #error{
   position:fixed;inset:0;
   background:#000;
   display:none;flex-direction:column;
-  justify-content:center;align-items:center;gap:16px;
+  justify-content:center;align-items:center;gap:12px;
   z-index:9999;
-  color:#ff6b6b;font-size:15px;
-  text-align:center;padding:32px;
-  line-height:1.6;
+  color:#ff5555;font-size:16px;
+  text-align:center;padding:24px;
 }
 #error.show{display:flex;}
-#error-retry{
-  margin-top:8px;
-  padding:10px 24px;
-  background:#fff;color:#000;
-  border:none;border-radius:20px;
-  font-size:14px;font-weight:600;
-  cursor:pointer;
-}
 
-/* ── Tap Prompt ── */
+/* Audio tap prompt */
 #tap{
   position:fixed;
-  left:50%;
-  bottom:calc(env(safe-area-inset-bottom,0px) + 30px);
+  left:50%;bottom:env(safe-area-inset-bottom, 25px);
+  bottom:calc(env(safe-area-inset-bottom, 0px) + 25px);
   transform:translateX(-50%);
-  padding:11px 22px;
-  background:rgba(0,0,0,.7);
+  padding:12px 20px;
+  background:rgba(0,0,0,.75);
   color:#fff;font-size:14px;
-  border-radius:20px;
-  z-index:1000;
-  backdrop-filter:blur(12px);
-  -webkit-backdrop-filter:blur(12px);
-  transition:opacity .4s ease;
+  border-radius:14px;z-index:999;
+  backdrop-filter:blur(10px);
+  -webkit-backdrop-filter:blur(10px);
+  transition:opacity .3s ease;
   white-space:nowrap;
   pointer-events:none;
-  border:1px solid rgba(255,255,255,.15);
 }
 #tap.hide{opacity:0;}
-
-/* ── Scan Hint ── */
-#scan-hint{
-  position:fixed;
-  left:50%;top:50%;
-  transform:translate(-50%,-50%);
-  display:flex;flex-direction:column;
-  align-items:center;gap:12px;
-  z-index:500;
-  pointer-events:none;
-  transition:opacity .4s ease;
-}
-#scan-hint.hide{opacity:0;}
-
-.scan-frame{
-  width:200px;height:200px;
-  position:relative;
-}
-.scan-corner{
-  position:absolute;
-  width:28px;height:28px;
-  border-color:#fff;
-  border-style:solid;
-  opacity:.7;
-}
-.scan-corner.tl{top:0;left:0;border-width:3px 0 0 3px;}
-.scan-corner.tr{top:0;right:0;border-width:3px 3px 0 0;}
-.scan-corner.bl{bottom:0;left:0;border-width:0 0 3px 3px;}
-.scan-corner.br{bottom:0;right:0;border-width:0 3px 3px 0;}
-
-.scan-line{
-  position:absolute;
-  left:4px;right:4px;height:2px;
-  background:linear-gradient(90deg,transparent,#fff,transparent);
-  animation:scanLine 2s ease-in-out infinite;
-  opacity:.6;
-}
-@keyframes scanLine{
-  0%{top:4px;opacity:.6;}
-  50%{opacity:.9;}
-  100%{top:calc(100% - 6px);opacity:.6;}
-}
-
-#scan-hint span{
-  color:#fff;font-size:13px;
-  letter-spacing:.6px;opacity:.7;
-}
 </style>
 </head>
 
 <body>
 
 <div id="loading">
-  <div class="spinner"></div>
-  <span id="loading-text">Loading AR…</span>
+  <div id="loading-spinner"></div>
+  <span>Loading AR…</span>
 </div>
 
 <div id="error">
-  <span>⚠️ AR load failed.<br>Check your connection and try again.</span>
-  <button id="error-retry" onclick="location.reload()">Retry</button>
+  <span>⚠️ Could not load AR target.<br>Please check your connection and refresh.</span>
 </div>
 
-<div id="tap" class="hide">🔊 Tap to enable audio</div>
-
-<!-- Scan UI (shown before target is found) -->
-<div id="scan-hint" class="hide">
-  <div class="scan-frame">
-    <div class="scan-corner tl"></div>
-    <div class="scan-corner tr"></div>
-    <div class="scan-corner bl"></div>
-    <div class="scan-corner br"></div>
-    <div class="scan-line"></div>
-  </div>
-  <span>Point camera at image</span>
-</div>
+<div id="tap" class="hide">Tap to enable audio</div>
 
 <a-scene
   embedded
@@ -180,56 +99,48 @@ a-scene{background:#000;}
   color-space="sRGB"
   renderer="
     alpha:true;
-    antialias:false;
+    antialias:true;
     precision:mediump;
     colorManagement:true;
     sortObjects:true;
     physicallyCorrectLights:false;
-    logarithmicDepthBuffer:false;
+    logarithmicDepthBuffer:true;
     powerPreference:high-performance;
-    maxCanvasWidth:1920;
-    maxCanvasHeight:1920;
   "
   mindar-image="
     imageTargetSrc: targets.mind;
     autoStart: true;
     uiLoading: no;
-    uiScanning: no;
+    uiScanning: yes;
     uiError: no;
     maxTrack: 1;
-    filterMinCF: 0.0015;
-    filterBeta: 0.005;
-    warmupTolerance: 3;
-    missTolerance: 8;
+    filterMinCF: 0.001;
+    filterBeta: 0.01;
+    warmupTolerance: 5;
+    missTolerance: 5;
   "
 >
-  <!-- Preload all assets -->
-  <a-assets timeout="45000" id="assets">
+
+  <a-assets timeout="30000" id="assets">
     <video
       id="video"
       src="video.mp4"
-      preload="metadata"
+      preload="auto"
       crossorigin="anonymous"
       loop
       playsinline
       webkit-playsinline
-      x5-playsinline
-      x5-video-player-type="h5"
       muted
     ></video>
   </a-assets>
 
-  <a-camera
-    position="0 0 0"
-    look-controls="enabled:false"
-    wasd-controls="enabled:false"
-  ></a-camera>
+  <a-camera position="0 0 0" look-controls="enabled:false"></a-camera>
 
   <a-entity id="target" mindar-image-target="targetIndex:0">
     <a-video
       id="videoPlane"
       src="#video"
-      position="0 0 0.001"
+      position="0 0 0"
       width="1"
       height="1.5"
       material="
@@ -238,9 +149,7 @@ a-scene{background:#000;}
         depthTest:false;
         depthWrite:false;
         toneMapped:false;
-        side:front;
       "
-      visible="false"
     ></a-video>
   </a-entity>
 
@@ -248,264 +157,161 @@ a-scene{background:#000;}
 
 <script>
 (function(){
-  'use strict';
 
-  /* ── Element refs ── */
-  const scene      = document.querySelector('a-scene');
-  const video      = document.getElementById('video');
-  const assets     = document.getElementById('assets');
-  const target     = document.getElementById('target');
-  const videoPlane = document.getElementById('videoPlane');
-  const loadingEl  = document.getElementById('loading');
-  const errorEl    = document.getElementById('error');
-  const tapUI      = document.getElementById('tap');
-  const scanHint   = document.getElementById('scan-hint');
+  const scene      = document.querySelector("a-scene");
+  const video      = document.querySelector("#video");
+  const assets     = document.querySelector("#assets");
+  const target     = document.querySelector("#target");
+  const videoPlane = document.querySelector("#videoPlane");
+  const loading    = document.querySelector("#loading");
+  const errorEl    = document.querySelector("#error");
+  const tapUI      = document.querySelector("#tap");
 
-  /* ── State ── */
   let tracking      = false;
   let audioUnlocked = false;
   let lostTimer     = null;
-  let rafId         = null;
-  let rafActive     = false;
-  let sceneReady    = false;
+  let updaterActive = false;
 
-  /* ──────────────────────────────────────────────
-     iOS / Android video element fixes
-  ────────────────────────────────────────────── */
-  video.setAttribute('playsinline', '');
-  video.setAttribute('webkit-playsinline', '');
-  video.muted = true;               // must be muted for autoplay
-  video.volume = 1.0;
+  /* ─── iOS fixes ─────────────────────────────────── */
+  video.setAttribute("playsinline", "");
+  video.setAttribute("webkit-playsinline", "");
 
-  /* ──────────────────────────────────────────────
-     Loading screen hide
-  ────────────────────────────────────────────── */
-  function hideLoading() {
-    loadingEl.classList.add('hide');
-    // Remove from DOM after transition to free memory
-    setTimeout(() => { loadingEl.style.display = 'none'; }, 600);
-  }
+  /* ─── Error recovery ─────────────────────────────── */
+  // Catch .mind file load failure via fetch before A-Frame tries
+  fetch("targets.mind", { method: "HEAD" }).catch(() => showError());
 
-  // MindAR fires 'arReady' when camera + tracker are up
-  scene.addEventListener('arReady', () => {
-    sceneReady = true;
-    hideLoading();
-    scanHint.classList.remove('hide');
-  });
-
-  // Fallback: hide loading after renderstart if arReady doesn't fire
-  scene.addEventListener('renderstart', () => {
-    setTimeout(() => {
-      if (!sceneReady) {
-        hideLoading();
-        scanHint.classList.remove('hide');
-      }
-    }, 1200);
-  });
-
-  /* ──────────────────────────────────────────────
-     Error handling  
-     (Do NOT use fetch HEAD — CORS blocks it on most servers)
-  ────────────────────────────────────────────── */
-  scene.addEventListener('arError', showError);
-
-  // Catch MindAR console error for missing .mind file
-  const _origError = console.error.bind(console);
-  console.error = function(...args) {
-    const msg = args.join(' ');
-    if (msg.includes('targets.mind') || msg.includes('Failed to fetch') || msg.includes('404')) {
-      showError();
-    }
-    _origError(...args);
-  };
+  scene.addEventListener("arError", showError);
 
   function showError() {
-    hideLoading();
-    scanHint.classList.add('hide');
-    errorEl.classList.add('show');
+    loading.classList.add("hide");
+    errorEl.classList.add("show");
   }
 
-  /* ──────────────────────────────────────────────
-     Video dimension auto-fit
-  ────────────────────────────────────────────── */
-  video.addEventListener('loadedmetadata', () => {
-    const w = video.videoWidth  || 1;
-    const h = video.videoHeight || 1;
-    const ratio = w / h;
-    if (ratio >= 1) {
-      videoPlane.setAttribute('width',  ratio.toFixed(4));
-      videoPlane.setAttribute('height', '1');
+  /* ─── Loading removal ────────────────────────────── */
+  scene.addEventListener("renderstart", () => {
+    // Give MindAR a moment to initialise its UI before we hide our screen
+    setTimeout(() => loading.classList.add("hide"), 400);
+  });
+
+  /* ─── Tap prompt visibility ──────────────────────── */
+  // Only show if audio unlock is actually needed (non-iOS always auto-unlocks)
+  function maybeShowTapUI() {
+    if (!audioUnlocked) tapUI.classList.remove("hide");
+  }
+  // We defer showing until the user has found a target (no point showing on load)
+
+  /* ─── Video dimension fit ────────────────────────── */
+  video.addEventListener("loadedmetadata", () => {
+    const ratio = video.videoWidth / video.videoHeight;
+    if (ratio > 1) {
+      videoPlane.setAttribute("width",  ratio);
+      videoPlane.setAttribute("height", 1);
     } else {
-      videoPlane.setAttribute('width',  '1');
-      videoPlane.setAttribute('height', (1 / ratio).toFixed(4));
+      videoPlane.setAttribute("width",  1);
+      videoPlane.setAttribute("height", 1 / ratio);
     }
   });
 
-  /* ──────────────────────────────────────────────
-     Video warm-up preload (muted, paused)
-     Runs after A-Frame asset system finishes
-  ────────────────────────────────────────────── */
-  assets.addEventListener('loaded', () => {
-    warmUpVideo();
+  /* ─── Preload video (muted) ──────────────────────── */
+  // Wait for the A-Frame asset system to signal assets are loaded
+  assets.addEventListener("loaded", () => {
+    video.muted = true;
+    video.play().then(() => {
+      video.pause();
+      video.currentTime = 0;
+    }).catch(() => {});
   });
 
-  // Fallback if assets event never fires (some Android browsers)
-  setTimeout(warmUpVideo, 3000);
-  let warmedUp = false;
+  /* ─── Audio unlock (unified pointer, fires once) ──── */
+  // Using "pointerdown" avoids the iOS double-fire bug where a tap
+  // triggers both "click" and "touchstart" on the same element.
+  document.body.addEventListener("pointerdown", unlockAudio, { once: true, passive: true });
 
-  function warmUpVideo() {
-    if (warmedUp) return;
-    warmedUp = true;
-    video.muted = true;
-    video.play()
-      .then(() => { video.pause(); video.currentTime = 0; })
-      .catch(() => {});
-  }
-
-  /* ──────────────────────────────────────────────
-     Audio unlock
-     — Uses both touchstart AND click for max compat
-     — Works on iOS Safari, Chrome Android, Samsung
-  ────────────────────────────────────────────── */
-  function unlockAudio() {
+  async function unlockAudio() {
     if (audioUnlocked) return;
     audioUnlocked = true;
-    tapUI.classList.add('hide');
+    tapUI.classList.add("hide");
 
-    // Create and immediately destroy a silent AudioContext
-    // This unlocks the Web Audio API on iOS
     try {
-      const AudioCtx = window.AudioContext || window.webkitAudioContext;
-      if (AudioCtx) {
-        const ctx = new AudioCtx();
-        const buf = ctx.createBuffer(1, 1, 22050);
-        const src = ctx.createBufferSource();
-        src.buffer = buf;
-        src.connect(ctx.destination);
-        src.start(0);
-        setTimeout(() => ctx.close(), 500);
-      }
-    } catch(e){}
-
-    // Unmute and attempt play/pause to unlock video
-    video.muted = false;
-    video.play()
-      .then(() => { video.pause(); video.currentTime = 0; })
-      .catch(() => {
-        video.muted = true;
-        audioUnlocked = false;   // failed — allow retry
-        tapUI.classList.remove('hide');
-      });
+      video.muted = false;
+      await video.play();
+      video.pause();
+      video.currentTime = 0;
+    } catch(e) {
+      // If it fails here, we'll set muted=false on the next targetFound
+      video.muted = true;
+      audioUnlocked = false;
+    }
   }
 
-  // Listen on both events (iOS needs touchstart, Android prefers click)
-  document.addEventListener('touchstart', unlockAudio, { once: true, passive: true });
-  document.addEventListener('click',      unlockAudio, { once: true, passive: true });
+  /* ─── Target found ───────────────────────────────── */
+  target.addEventListener("targetFound", async () => {
+    clearTimeout(lostTimer);
+    lostTimer = null;
 
-  /* ──────────────────────────────────────────────
-     Target Found
-  ────────────────────────────────────────────── */
-  target.addEventListener('targetFound', async () => {
-    if (lostTimer) { clearTimeout(lostTimer); lostTimer = null; }
     if (tracking) return;
     tracking = true;
 
-    scanHint.classList.add('hide');
     videoPlane.object3D.visible = true;
-
-    if (!audioUnlocked) tapUI.classList.remove('hide');
+    maybeShowTapUI();
+    setUpdaterActive(true);
 
     try {
       video.muted = !audioUnlocked;
-      video.currentTime = 0;
+      if (video.readyState >= 2) video.currentTime = 0;
       await video.play();
-    } catch(e) {
-      // Fallback: muted play (Android autoplay policy)
-      try {
-        video.muted = true;
-        await video.play();
-      } catch(e2) {}
-    }
-
-    setRafActive(true);
+    } catch(e) {}
   });
 
-  /* ──────────────────────────────────────────────
-     Target Lost
-  ────────────────────────────────────────────── */
-  target.addEventListener('targetLost', () => {
-    // 1000ms grace — avoids flicker from brief hands / occlusion
+  /* ─── Target lost ────────────────────────────────── */
+  target.addEventListener("targetLost", () => {
+    // 800ms grace period avoids flicker from brief occlusions
     lostTimer = setTimeout(() => {
       tracking = false;
-      lostTimer = null;
       video.pause();
       videoPlane.object3D.visible = false;
-      tapUI.classList.add('hide');
-      scanHint.classList.remove('hide');
-      setRafActive(false);
-    }, 1000);
+      setUpdaterActive(false);
+    }, 800);
   });
 
-  /* ──────────────────────────────────────────────
-     Page visibility (tab switch / home button)
-  ────────────────────────────────────────────── */
-  document.addEventListener('visibilitychange', () => {
+  /* ─── Page visibility ─────────────────────────────── */
+  document.addEventListener("visibilitychange", () => {
     if (document.hidden) {
       video.pause();
-      setRafActive(false);
     } else if (tracking) {
       video.play().catch(() => {});
-      setRafActive(true);
     }
   });
 
-  /* ──────────────────────────────────────────────
-     RAF texture updater
-     Only runs while tracking — zero GPU cost otherwise
-  ────────────────────────────────────────────── */
-  function setRafActive(on) {
-    if (on === rafActive) return;
-    rafActive = on;
-    if (on) {
+  /* ─── Video texture updater (event-driven, not tick) ─ */
+  // Only runs when actively tracking — avoids constant GPU drain
+  let rafId = null;
+
+  function setUpdaterActive(on) {
+    if (on && !updaterActive) {
+      updaterActive = true;
       rafLoop();
-    } else {
-      if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+    } else if (!on && updaterActive) {
+      updaterActive = false;
+      cancelAnimationFrame(rafId);
     }
   }
 
   function rafLoop() {
-    if (!rafActive) return;
-    updateTexture();
+    if (!updaterActive) return;
+    if (video.readyState >= 2) {
+      const mesh = videoPlane.getObject3D("mesh");
+      if (mesh && mesh.material && mesh.material.map) {
+        mesh.material.map.needsUpdate = true;
+      }
+    }
     rafId = requestAnimationFrame(rafLoop);
   }
 
-  function updateTexture() {
-    if (video.readyState < 2) return;      // HAVE_CURRENT_DATA
-    const mesh = videoPlane.getObject3D('mesh');
-    if (!mesh) return;
-    const mat = mesh.material;
-    if (mat && mat.map) {
-      mat.map.needsUpdate = true;
-    }
-  }
-
-  /* ──────────────────────────────────────────────
-     Initial visibility — ensure hidden until found
-  ────────────────────────────────────────────── */
-  videoPlane.addEventListener('loaded', () => {
+  /* ─── Initial state ───────────────────────────────── */
+  videoPlane.addEventListener("loaded", () => {
     videoPlane.object3D.visible = false;
   });
-
-  /* ──────────────────────────────────────────────
-     Prevent scroll/zoom on mobile
-  ────────────────────────────────────────────── */
-  document.addEventListener('gesturestart',  e => e.preventDefault(), { passive: false });
-  document.addEventListener('gesturechange', e => e.preventDefault(), { passive: false });
-  document.addEventListener('gestureend',    e => e.preventDefault(), { passive: false });
-
-  document.addEventListener('touchmove', e => {
-    if (e.touches.length > 1) e.preventDefault();
-  }, { passive: false });
 
 })();
 </script>
